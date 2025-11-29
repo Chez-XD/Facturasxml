@@ -1,0 +1,7 @@
+# Entorno virtual
+venv/
+__pycache__/
+
+# Archivos de reportes
+*.xlsx
+*.csv
