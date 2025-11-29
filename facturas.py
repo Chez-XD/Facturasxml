@@ -4,15 +4,10 @@ from pathlib import Path
 import sys
 import os
 
-# --- CONFIGURACIÓN ---
-RUTA_XMLS = '/home/chez/Facturas' 
-NOMBRE_EXCEL = '/mnt/d/amart/Chrome/papeles/Facturas/Noviembre 2025/Reporte_Facturas_CFDI.xlsx'
-# ---------------------
+RUTA_XMLS = 'Agregar ruta ' 
+NOMBRE_EXCEL = 'agregar ruta'
 
 def obtener_datos_cfdi_diccionario(ruta_xml):
-    """
-    Extrae los datos del XML (Misma función robusta que ya teníamos).
-    """
     try:
         with open(ruta_xml, 'r', encoding='utf-8') as f:
             xml_string = f.read()
@@ -31,20 +26,15 @@ def obtener_datos_cfdi_diccionario(ruta_xml):
         if not comprobante:
             raise ValueError("No se encontró el nodo principal 'Comprobante'.")
 
-        # Extracción segura de datos
-        
-        # --- LÓGICA DE SEPARACIÓN DE FECHA Y HORA (CORREGIDA) ---
         fecha_completa_iso = comprobante.get('@Fecha', 'N/A')
         
         fecha = 'N/A'
         hora = 'N/A'
         
         if fecha_completa_iso != 'N/A' and 'T' in fecha_completa_iso:
-            # Divide la cadena en la letra 'T'
             partes = fecha_completa_iso.split('T')
-            fecha = partes[0]  # Ejemplo: '2025-11-27'
-            hora = partes[1]   # Ejemplo: '20:15:41'
-        # ---------------------------------------------------------
+            fecha = partes[0] 
+            hora = partes[1] 
             
         total = comprobante.get('@Total', 'N/A')
         subtotal = comprobante.get('@SubTotal', 'N/A')
@@ -77,11 +67,10 @@ def obtener_datos_cfdi_diccionario(ruta_xml):
         total_retenciones = impuestos_totales.get('@TotalImpuestosRetenidos', '0.00')
         total_traslados = impuestos_totales.get('@TotalImpuestosTrasladados', '0.00')
 
-        # --- DICCIONARIO DE RETORNO (CON FECHA Y HORA SEPARADAS) ---
         return {
             'UUID': uuid, 
-            'Fecha': fecha,        # Columna de fecha (2025-11-27)
-            'Hora': hora,          # Columna de hora (20:15:41)
+            'Fecha': fecha,
+            'Hora': hora, 
             'RFC Emisor': emisor_rfc, 
             'Nombre Emisor': emisor_nombre, 
             'RFC Receptor': receptor_rfc,
@@ -103,15 +92,11 @@ def obtener_datos_cfdi_diccionario(ruta_xml):
 
 
 def procesar_archivos_incremental(directorio_xmls, nombre_excel):
-    """
-    Carga el Excel existente, verifica UUIDs y agrega solo las filas nuevas.
-    """
     ruta_directorio = Path(directorio_xmls)
     ruta_excel = Path(nombre_excel)
     
     print(f"--- PROCESO INCREMENTAL ---")
 
-    # 1. Cargar Excel Existente para obtener UUIDs
     uuids_existentes = set()
     df_existente = pd.DataFrame()
     archivo_existe = ruta_excel.exists()
@@ -120,9 +105,7 @@ def procesar_archivos_incremental(directorio_xmls, nombre_excel):
         print(f"📂 Leyendo archivo Excel existente: {nombre_excel}")
         try:
             df_existente = pd.read_excel(nombre_excel)
-            # Verificar si existe la columna UUID
             if 'UUID' in df_existente.columns:
-                # Convertimos a string y guardamos en un 'set' para búsqueda rápida
                 uuids_existentes = set(df_existente['UUID'].astype(str).dropna())
                 print(f"📊 Se encontraron {len(uuids_existentes)} facturas ya registradas.")
             else:
@@ -133,7 +116,7 @@ def procesar_archivos_incremental(directorio_xmls, nombre_excel):
     else:
         print(f"🆕 El archivo Excel no existe. Se creará uno nuevo.")
 
-    # 2. Buscar y Procesar XMLs
+
     if not ruta_directorio.is_dir():
         print(f"❌ ERROR: El directorio '{directorio_xmls}' no existe.")
         return
@@ -154,21 +137,17 @@ def procesar_archivos_incremental(directorio_xmls, nombre_excel):
         
         uuid_actual = str(datos.get('UUID', 'N/A'))
 
-        # --- LÓGICA DE VALIDACIÓN ---
         if uuid_actual in uuids_existentes:
             contador_omitidos += 1
         elif uuid_actual == 'ERROR' or uuid_actual == 'N/A':
-            # Agregar el error para que se vea en el Excel
             nuevos_registros.append(datos)
             contador_agregados += 1
         else:
-            # Es nuevo y válido
             nuevos_registros.append(datos)
             uuids_existentes.add(uuid_actual) 
             contador_agregados += 1
             print(f"   [NUEVO] {archivo_xml.name}")
 
-    # 3. Guardar resultados
     print(f"\nResumen:")
     print(f"   ✔ Existentes (Omitidos): {contador_omitidos}")
     print(f"   Nuevos (Para agregar): {contador_agregados}")
@@ -176,7 +155,6 @@ def procesar_archivos_incremental(directorio_xmls, nombre_excel):
     if nuevos_registros:
         df_nuevos = pd.DataFrame(nuevos_registros)
         
-        # Concatenar (Unir) los existentes con los nuevos
         if not df_existente.empty:
             df_final = pd.concat([df_existente, df_nuevos], ignore_index=True)
         else:
@@ -188,6 +166,5 @@ def procesar_archivos_incremental(directorio_xmls, nombre_excel):
     else:
         print("✅ No hubo datos nuevos que agregar. El Excel se mantiene igual.")
 
-# --- EJECUCIÓN ---
 if __name__ == "__main__":
     procesar_archivos_incremental(RUTA_XMLS, NOMBRE_EXCEL)
